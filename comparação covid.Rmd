@@ -1,0 +1,169 @@
+---
+title:  "Comparação de Casos de Covid nos 3 Últimos Meses"
+output: 
+  flexdashboard::flex_dashboard:
+    css: www/style.css
+    orientation: rows
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(plotly)
+library(gapminder)
+library(ggplot2)
+library(gganimate)
+
+library(animation)
+
+
+library(geobr)
+
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(ggspatial)
+library(esquisse)
+
+covid2 <-
+  list.files(path = "C:/Users/joseferson/Documents/covidhj/",
+             pattern = "*.csv", 
+             full.names = T) %>% 
+  map_df(~read_csv2(., col_types = cols(.default = "c"))) 
+
+nov<- covid2 %>% filter( municipio == 'Campina Grande'  & data > "2022-05-31" &
+                           data < "2022-07-01"  )
+
+
+
+
+nov$casosNovos<-as.numeric(nov$casosNovos)
+
+teste<-aggregate(nov$casosNovos, by=list(data=nov$data), FUN=sum)
+
+teste$data<-as.Date(teste$data)
+
+
+# para abril e maio 
+
+maio<- covid2 %>% filter( municipio == 'Campina Grande'  & data > "2022-04-30" &
+                            data < "2022-06-01")
+
+
+abril<- covid2 %>% filter( municipio == 'Campina Grande'  & data > "2022-03-31" &
+                            data < "2022-05-01")
+
+maio$casosNovos<-as.numeric(maio$casosNovos)
+
+testemaio<-aggregate(maio$casosNovos, by=list(data=maio$data), FUN=sum) 
+
+
+abril$casosNovos<-as.numeric(abril$casosNovos)
+#teste abril
+ testeabril<-aggregate(abril$casosNovos, by=list(data=abril$data), FUN=sum)
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### <font  face ="arial black" > Média de casos de Abril </font> 
+
+
+```{r}
+valueBox(round(mean(testeabril$x),2),color = '#94e354')
+
+```
+
+ 
+###  <font  face ="arial black" > média de novos casos em maio </font>
+
+```{r}
+valueBox(round(mean(testemaio$x),2),color = '#829c4f')
+```
+
+
+
+
+###  <font  face ="arial black" > média de novos casos em junho </font> 
+
+```{r}
+valueBox(round(mean(teste$x),2),color = '#7d3507')
+```
+
+
+
+### <font  face ="arial black" > a mais em relação ao mês de maio</font> 
+
+```{r}
+valueBox(paste(round((round(mean(teste[2:30,2]),2)/round(mean(testemaio$x),2)-1)*100,2),"%"),color = '#911616')
+
+
+```
+ 
+ 
+### <font  face ="arial black" > a mais em relação ao mês de abril </font> 
+
+```{r}
+valueBox(paste(round((round(mean(teste[2:30,2]),2)/round(mean(testeabril$x),2)-1)*100,2),"%"), color = '#5F0000')
+
+
+```
+
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### <font  color="black" face ="arial black" > Gráfico de Tendência com Base  no mês de Junho </font> 
+
+```{r}
+mim.anime<-ggplot(teste,aes(x=data,y=x))+
+  geom_line(col="red")+geom_smooth(method=lm)+
+  scale_y_continuous(limits = range(teste$x))+
+  scale_x_date(limits = range(teste$data))+
+  theme_bw() +
+  labs(x=NULL,
+       y="casos novos",
+       title = "Tendência de Novos Casos De Covid-19",
+       )
+
+ggplotly(mim.anime)
+```
+
+### <font  color="black" face ="arial black" > Comparação Entre os Três Últimos Meses 
+ </font>
+```{r}
+
+
+testeabril$mes<-rep('abrl',30)
+testemaio$mes<-rep('mai',31)
+teste$mes<-rep('jun',30)
+
+# dias
+testeabril$dia<-rep(1:30,1)
+testemaio$dia<-rep(1:31,1)
+teste$dia<-rep(1:30,1)
+
+novo<-rbind(testeabril,testemaio,teste)
+
+
+novo$mes<-factor(c(novo$mes), levels = c("abrl","mai","jun"),labels = c("abrl","mai","jun"))
+
+
+novo$data<-as.Date(novo$data)
+
+mim.anime3<-ggplot(novo,aes(x=dia,y=x,group = mes,col=mes)) + geom_line()+
+  #geom_smooth(method = "loess", fill = NA,aes(group = Ano))+
+  labs(title = "Comparação dos  casos de Covid-19 ",
+       subtitle = "nos 3 Últimos meses",
+       x="Dias do Mês",
+       y="numero de casos novos",
+       color=NULL)+
+  scale_x_continuous(breaks = seq(1,31,5))+
+  theme(#legend.position = 'top',
+  )+
+  transition_reveal(along = dia)
+
+
+animate(mim.anime3,height=620,width=822,duration=10,res=160)
+```
+
